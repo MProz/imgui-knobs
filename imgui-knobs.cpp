@@ -9,49 +9,6 @@
 
 namespace ImGuiKnobs {
     namespace detail {
-        void draw_arc1(ImVec2 center, float radius, float start_angle, float end_angle, float thickness, ImColor color, int num_segments) {
-            ImVec2 start = {
-                    center[0] + cosf(start_angle) * radius,
-                    center[1] + sinf(start_angle) * radius,
-            };
-
-            ImVec2 end = {
-                    center[0] + cosf(end_angle) * radius,
-                    center[1] + sinf(end_angle) * radius,
-            };
-
-            // Calculate bezier arc points
-            auto ax = start[0] - center[0];
-            auto ay = start[1] - center[1];
-            auto bx = end[0] - center[0];
-            auto by = end[1] - center[1];
-            auto q1 = ax * ax + ay * ay;
-            auto q2 = q1 + ax * bx + ay * by;
-            auto k2 = (4.0f / 3.0f) * (sqrtf((2.0f * q1 * q2)) - q2) / (ax * by - ay * bx);
-            auto arc1 = ImVec2{center[0] + ax - k2 * ay, center[1] + ay + k2 * ax};
-            auto arc2 = ImVec2{center[0] + bx + k2 * by, center[1] + by - k2 * bx};
-
-            auto *draw_list = ImGui::GetWindowDrawList();
-
-            draw_list->AddBezierCurve(start, arc1, arc2, end, color, thickness, num_segments);
-        }
-
-        void draw_arc(ImVec2 center, float radius, float start_angle, float end_angle, float thickness, ImColor color, int num_segments, int bezier_count) {
-            // Overlap and angle of ends of bezier curves needs work, only looks good when not transperant
-            auto overlap = thickness * radius * 0.00001f * IMGUIKNOBS_PI;
-            auto delta = end_angle - start_angle;
-            auto bez_step = 1.0f / bezier_count;
-            auto mid_angle = start_angle + overlap;
-
-            for (auto i = 0; i < bezier_count - 1; i++) {
-                auto mid_angle2 = delta * bez_step + mid_angle;
-                draw_arc1(center, radius, mid_angle - overlap, mid_angle2 + overlap, thickness, color, num_segments);
-                mid_angle = mid_angle2;
-            }
-
-            draw_arc1(center, radius, mid_angle - overlap, end_angle, thickness, color, num_segments);
-        }
-
         template<typename DataType>
         struct knob {
             float radius;
@@ -123,19 +80,55 @@ namespace ImGuiKnobs {
                         is_active ? color.active : (is_hovered ? color.hovered : color.base));
             }
 
-            void draw_arc(float radius, float size, float start_angle, float end_angle, color_set color, int segments, int bezier_count) {
-                auto track_radius = radius * this->radius;
-                auto track_size = size * this->radius * 0.5f + 0.0001f;
+            void calculate_fill(ImGuiKnobFillStyle wiper_style, bool round)
+            {
+                float start_angle = 1.0f;
+                float end_angle = -1.0f;
 
-                detail::draw_arc(
-                        center,
-                        track_radius,
-                        start_angle,
-                        end_angle,
-                        track_size,
-                        is_active ? color.active : (is_hovered ? color.hovered : color.base),
-                        segments,
-                        bezier_count);
+
+                switch(wiper_style){
+                    case(ImGuiKnobFillStyle_NoFill):
+                    {
+                        break;
+                    }
+                    case(ImGuiKnobFillStyle_LeftFill):
+                    {
+                        start_angle = angle_min;
+                        end_angle = angle;
+                        break;
+                    }
+                    case(ImGuiKnobFillStyle_RightFill):
+                    {
+                        start_angle = angle;
+                        end_angle = angle_max;
+                        break;
+                    }
+                    case(ImGuiKnobFillStyle_CenterFill):
+                    {
+                        const float midpoint = ((angle_max - angle_min) * 0.5f) + angle_min;
+
+                        if(angle > midpoint)
+                        {
+                            start_angle = midpoint;
+                            end_angle = angle;
+                        }
+                        else
+                        {
+                            start_angle = angle;
+                            end_angle = midpoint;
+                        }
+                        break;
+                    }
+                }
+
+                if(round) 
+                {
+                    for(float ang = start_angle; ang <= end_angle; ang += 0.01f) { draw_dot(0.11, 0.8f, ang, detail::GetPrimaryColorSet(), true, 12); }
+                }
+                else
+                {
+                    for(float ang = start_angle; ang <= end_angle; ang += 0.01f) { draw_tick(0.71f, 0.9f, 0.01f, ang, detail::GetPrimaryColorSet()); }
+                }
             }
         };
 
@@ -219,67 +212,99 @@ namespace ImGuiKnobs {
 
             return {colors[ImGuiCol_FrameBg], colors[ImGuiCol_FrameBg], colors[ImGuiCol_FrameBg]};
         }
+
+        color_set GetTrackColorSet(float AlphaAdjust) {
+            auto *colors = ImGui::GetStyle().Colors;
+            ImVec4 Color = colors[ImGuiCol_FrameBg];
+            Color.w *= AlphaAdjust;
+            return {Color, Color, Color};
+        }
     }// namespace detail
 
 
     template<typename DataType>
-    bool BaseKnob(const char *label, ImGuiDataType data_type, DataType *p_value, DataType v_min, DataType v_max, float speed, const char *format, ImGuiKnobVariant variant, float size, ImGuiKnobFlags flags, int steps = 10) {
+    bool BaseKnob(const char *label, ImGuiDataType data_type, DataType *p_value, DataType v_min, DataType v_max, float speed, const char *format, float size,
+     ImGuiKnobButtonStyle button_style, ImGuiKnobBorderStyle border_style, ImGuiKnobFillStyle wiper_style, ImGuiKnobFlags flags, int steps = 10) {
         auto knob = detail::knob_with_drag(label, data_type, p_value, v_min, v_max, speed, format, size, flags);
 
-        switch (variant) {
-            case ImGuiKnobVariant_Tick: {
-                knob.draw_circle(0.85f, detail::GetSecondaryColorSet(), true, 32);
-                knob.draw_tick(0.5f, 0.85f, 0.08f, knob.angle, detail::GetPrimaryColorSet());
-                break;
-            }
-            case ImGuiKnobVariant_Dot: {
-                knob.draw_circle(0.85f, detail::GetSecondaryColorSet(), true, 32);
-                knob.draw_dot(0.12f, 0.6f, knob.angle, detail::GetPrimaryColorSet(), true, 12);
-                break;
-            }
+        float button_size = 0.85f; //Default button size
+        float dot_position = 0.6f;
+        float tick_position = 0.5f;
 
-            case ImGuiKnobVariant_Wiper: {
-                knob.draw_circle(0.7f, detail::GetSecondaryColorSet(), true, 32);
-                knob.draw_arc(0.8f, 0.41f, knob.angle_min, knob.angle_max, detail::GetTrackColorSet(), 16, 2);
-
-                if (knob.t > 0.01f) {
-                    knob.draw_arc(0.8f, 0.43f, knob.angle_min, knob.angle, detail::GetPrimaryColorSet(), 16, 2);
-                }
+        //Frist draw the border
+        switch (border_style){
+            case ImGuiKnobBorderStyle_None:
+            {
                 break;
             }
-            case ImGuiKnobVariant_WiperOnly: {
-                knob.draw_arc(0.8f, 0.41f, knob.angle_min, knob.angle_max, detail::GetTrackColorSet(), 32, 2);
-
-                if (knob.t > 0.01) {
-                    knob.draw_arc(0.8f, 0.43f, knob.angle_min, knob.angle, detail::GetPrimaryColorSet(), 16, 2);
-                }
-                break;
-            }
-            case ImGuiKnobVariant_WiperDot: {
-                knob.draw_circle(0.6f, detail::GetSecondaryColorSet(), true, 32);
-                knob.draw_arc(0.85f, 0.41f, knob.angle_min, knob.angle_max, detail::GetTrackColorSet(), 16, 2);
-                knob.draw_dot(0.1f, 0.85f, knob.angle, detail::GetPrimaryColorSet(), true, 12);
-                break;
-            }
-            case ImGuiKnobVariant_Stepped: {
+            case ImGuiKnobBorderStyle_Ticks:
+            {
                 for (auto n = 0.f; n < steps; n++) {
                     auto a = n / (steps - 1);
                     auto angle = knob.angle_min + (knob.angle_max - knob.angle_min) * a;
                     knob.draw_tick(0.7f, 0.9f, 0.04f, angle, detail::GetPrimaryColorSet());
                 }
 
-                knob.draw_circle(0.6f, detail::GetSecondaryColorSet(), true, 32);
-                knob.draw_dot(0.12f, 0.4f, knob.angle, detail::GetPrimaryColorSet(), true, 12);
+                button_size = 0.6f;
+                dot_position = 0.4f;
+                tick_position = 0.4f;
                 break;
             }
-            case ImGuiKnobVariant_Space: {
-                knob.draw_circle(0.3f - knob.t * 0.1f, detail::GetSecondaryColorSet(), true, 16);
+            case ImGuiKnobBorderStyle_WiperDot:
+            {
+                //custom arc because draw arc has weird alpha overlap issues, also it's round and that's neat (add a constant to lower alpha)
+                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.01f) { knob.draw_dot(0.11, 0.8f, ang, detail::GetTrackColorSet(0.1f), true, 12); }
+                //some jank to fix alpha blend at the ends of the round tracks
+                knob.draw_dot(0.11, 0.8f, knob.angle_min, detail::GetTrackColorSet(0.2f), true, 12);
+                knob.draw_dot(0.11, 0.8f, knob.angle_max, detail::GetTrackColorSet(0.2f), true, 12);
+                //actually draw the tracking dot
+                knob.draw_dot(0.1f, 0.8f, knob.angle, detail::GetPrimaryColorSet(), true, 12);
 
-                if (knob.t > 0.01f) {
-                    knob.draw_arc(0.4f, 0.15f, knob.angle_min - 1.0f, knob.angle - 1.0f, detail::GetPrimaryColorSet(), 16, 2);
-                    knob.draw_arc(0.6f, 0.15f, knob.angle_min + 1.0f, knob.angle + 1.0f, detail::GetPrimaryColorSet(), 16, 2);
-                    knob.draw_arc(0.8f, 0.15f, knob.angle_min + 3.0f, knob.angle + 3.0f, detail::GetPrimaryColorSet(), 16, 2);
-                }
+                //fill (round)
+                knob.calculate_fill(wiper_style, true);
+
+                button_size = 0.6f;
+                dot_position = 0.4f;
+                tick_position = 0.35f;
+                break;
+            }
+            case ImGuiKnobBorderStyle_WiperTick:
+            {
+                //custom arc because draw arc has weird alpha overlap issues
+                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.01f) { knob.draw_tick(0.71f, 0.9f, 0.01f, ang, detail::GetTrackColorSet()); }
+                knob.draw_tick(0.71f, 0.9f, 0.055f, knob.angle, detail::GetPrimaryColorSet());
+
+                //fill
+                knob.calculate_fill(wiper_style, false);
+
+                button_size = 0.6f;
+                dot_position = 0.4f;
+                tick_position = 0.35f;
+                break;
+            }
+        }
+
+        //Then draw the button
+        switch (button_style){
+            case ImGuiKnobButtonStyle_None:
+            {
+                break;
+            }
+            case ImGuiKnobButtonStyle_Blank:
+            {
+                knob.draw_circle(button_size, detail::GetSecondaryColorSet(), true, 32);
+                break;
+            }
+            case ImGuiKnobButtonStyle_Tick:
+            {
+                knob.draw_circle(button_size, detail::GetSecondaryColorSet(), true, 32);
+                knob.draw_tick(tick_position, button_size, 0.08f, knob.angle, detail::GetPrimaryColorSet());
+                break;
+            }
+            case ImGuiKnobButtonStyle_Dot:
+            {
+                knob.draw_circle(button_size, detail::GetSecondaryColorSet(), true, 32);
+                knob.draw_dot(0.12f, dot_position, knob.angle, detail::GetPrimaryColorSet(), true, 12);
                 break;
             }
         }
@@ -287,14 +312,16 @@ namespace ImGuiKnobs {
         return knob.value_changed;
     }
 
-    bool Knob(const char *label, float *p_value, float v_min, float v_max, float speed, const char *format, ImGuiKnobVariant variant, float size, ImGuiKnobFlags flags, int steps) {
+    bool Knob(const char *label, float *p_value, float v_min, float v_max, float speed, const char *format, float size,
+     ImGuiKnobButtonStyle button_style, ImGuiKnobBorderStyle border_style, ImGuiKnobFillStyle fill_style, ImGuiKnobFlags flags, int steps) {
         const char *_format = format == NULL ? "%.3f" : format;
-        return BaseKnob(label, ImGuiDataType_Float, p_value, v_min, v_max, speed, _format, variant, size, flags, steps);
+        return BaseKnob(label, ImGuiDataType_Float, p_value, v_min, v_max, speed, _format, size, button_style, border_style, fill_style, flags, steps);
     }
 
-    bool KnobInt(const char *label, int *p_value, int v_min, int v_max, float speed, const char *format, ImGuiKnobVariant variant, float size, ImGuiKnobFlags flags, int steps) {
+    bool KnobInt(const char *label, float *p_value, float v_min, float v_max, float speed, const char *format, float size,
+     ImGuiKnobButtonStyle button_style, ImGuiKnobBorderStyle border_style, ImGuiKnobFillStyle fill_style, ImGuiKnobFlags flags, int steps) {
         const char *_format = format == NULL ? "%i" : format;
-        return BaseKnob(label, ImGuiDataType_S32, p_value, v_min, v_max, speed, _format, variant, size, flags, steps);
+        return BaseKnob(label, ImGuiDataType_S32, p_value, v_min, v_max, speed, _format, size, button_style, border_style, fill_style, flags, steps);
     }
 
 }// namespace ImGuiKnobs

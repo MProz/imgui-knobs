@@ -1,16 +1,16 @@
 # ImGui Knobs
 This is a port/adaptation of [imgui-rs-knobs](https://github.com/DGriffin91/imgui-rs-knobs), for C++.
-
-![image](https://user-images.githubusercontent.com/956928/164050142-96a8dde4-7d2e-43e4-9afe-14ab48eac243.png)
+This port contains modifications which break compatibility with the original Rust implementation.
 
 ## Usage
 Add `imgui-knobs.cpp` and `imgui-knobs.h` to your project and include `imgui-knobs.h` in some source file.
 
+TODO: Add image of examples of these styles in practice
 
 ```cpp
 static float value = 0;
 
-if (ImGuiKnobs::Knob("Volume", &value, -6.0f, 6.0f, 0.1f, "%.1fdB", ImGuiKnobVariant_Tick)) {
+if (ImGuiKnobs::Knob("Volume", &value, -6.0f, 6.0f, 0.1f, "%.1fdB")) {
     // value was changed
 }
 ```
@@ -18,12 +18,14 @@ if (ImGuiKnobs::Knob("Volume", &value, -6.0f, 6.0f, 0.1f, "%.1fdB", ImGuiKnobVar
 Draw knobs using either `Knob` or `KnobInt`. The API is:
 
 ```
-bool ImGuiKnobs::Knob(label, *value, min, max, [speed, format, variant, size, flags, steps])
-bool ImGuiKnobs::KnobInt(label, *value, min, max, [speed, format, variant, size, flags, steps])
+bool ImGuiKnobs::Knob(label, *value, min, max, [speed, format, size, button_style, border_style, fill_style, flags, steps])
+bool ImGuiKnobs::KnobInt(label, *value, min, max, [speed, format, size, button_style, border_style, fill_style, flags, steps])
 ```
 
-### Variants
-`variant` determines the visual look of the knob. Available variants are: `ImGuiKnobVariant_Tick`, `ImGuiKnobVariant_Dot`, `ImGuiKnobVariant_Wiper`, `ImGuiKnobVariant_WiperOnly`, `ImGuiKnobVariant_WiperDot`, `ImGuiKnobVariant_Stepped`, `ImGuiKnobVariant_Space`.
+### Styles
+`button_style` determines the visual look of the clickable part of the knob. Available button styles are: `ImGuiKnobButtonStyle_None`, `ImGuiKnobButtonStyle_Blank`, `ImGuiKnobButtonStyle_Tick`, `ImGuiKnobButtonStyle_Dot`.
+`border_style` determines the visual look of the outer track of the knob. Available border styles are: `ImGuiKnobBorderStyle_None`, `ImGuiKnobBorderStyle_Ticks`, `ImGuiKnobBorderStyle_WiperDot`, `ImGuiKnobBorderStyle_WiperTick`.
+`fill_style` determines how the border specified above is filled. This only applies to the wiper styles. Available fill styles are: `ImGuiKnobFillStyle_NoFill`, `ImGuiKnobFillStyle_LeftFill`, `ImGuiKnobFillStyle_CenterFill`, `ImGuiKnobFillStyle_RightFill`.
 
 ### Flags
  - `ImGuiKnobFlags_NoTitle`: Hide the top title.
@@ -32,8 +34,8 @@ bool ImGuiKnobs::KnobInt(label, *value, min, max, [speed, format, variant, size,
  - `ImGuiKnobFlags_DragHorizontal`: Use horizontal dragging (default is vertical).
 
 ### Size
-You can specify a size given as the width of the knob (will be scaled according to ImGui's `FontGlobalScale`). Default (0) will use 4x line height.
+You can specify a size with the size argument, don't use the global font scaling thing anymore
 
 ### Steps
-Steps determines the number of steps draw, it is only used for the `ImGuiKnobVariant_Stepped` variant.
+Steps determines the number of steps draw, it is only used for the `ImGuiKnobBorderStyle_Ticks` variant to specify the number of ticks to draw.
 
