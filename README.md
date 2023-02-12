@@ -2,6 +2,8 @@
 This is a port/adaptation of [imgui-rs-knobs](https://github.com/DGriffin91/imgui-rs-knobs), for C++.
 This port contains modifications which break compatibility with the original Rust implementation.
 
+![example image](https://github.com/MProz/imgui-knobs/blob/main/Examples.png)
+
 ## Usage
 Add `imgui-knobs.cpp` and `imgui-knobs.h` to your project and include `imgui-knobs.h` in some source file.
 
