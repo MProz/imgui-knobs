@@ -24,7 +24,9 @@ bool ImGuiKnobs::KnobInt(label, *value, min, max, [speed, format, size, button_s
 
 ### Styles
 `button_style` determines the visual look of the clickable part of the knob. Available button styles are: `ImGuiKnobButtonStyle_None`, `ImGuiKnobButtonStyle_Blank`, `ImGuiKnobButtonStyle_Tick`, `ImGuiKnobButtonStyle_Dot`.
+
 `border_style` determines the visual look of the outer track of the knob. Available border styles are: `ImGuiKnobBorderStyle_None`, `ImGuiKnobBorderStyle_Ticks`, `ImGuiKnobBorderStyle_WiperDot`, `ImGuiKnobBorderStyle_WiperTick`.
+
 `fill_style` determines how the border specified above is filled. This only applies to the wiper styles. Available fill styles are: `ImGuiKnobFillStyle_NoFill`, `ImGuiKnobFillStyle_LeftFill`, `ImGuiKnobFillStyle_CenterFill`, `ImGuiKnobFillStyle_RightFill`.
 
 ### Flags
