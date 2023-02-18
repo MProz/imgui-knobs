@@ -212,13 +212,6 @@ namespace ImGuiKnobs {
 
             return {colors[ImGuiCol_FrameBg], colors[ImGuiCol_FrameBg], colors[ImGuiCol_FrameBg]};
         }
-
-        color_set GetTrackColorSet(float AlphaAdjust) {
-            auto *colors = ImGui::GetStyle().Colors;
-            ImVec4 Color = colors[ImGuiCol_FrameBg];
-            Color.w *= AlphaAdjust;
-            return {Color, Color, Color};
-        }
     }// namespace detail
 
 
@@ -247,16 +240,13 @@ namespace ImGuiKnobs {
 
                 button_size = 0.6f;
                 dot_position = 0.4f;
-                tick_position = 0.4f;
+                tick_position = 0.35f;
                 break;
             }
             case ImGuiKnobBorderStyle_WiperDot:
             {
                 //custom arc because draw arc has weird alpha overlap issues, also it's round and that's neat (add a constant to lower alpha)
-                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.01f) { knob.draw_dot(0.11, 0.8f, ang, detail::GetTrackColorSet(0.1f), true, 12); }
-                //some jank to fix alpha blend at the ends of the round tracks
-                knob.draw_dot(0.11, 0.8f, knob.angle_min, detail::GetTrackColorSet(0.2f), true, 12);
-                knob.draw_dot(0.11, 0.8f, knob.angle_max, detail::GetTrackColorSet(0.2f), true, 12);
+                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.01f) { knob.draw_dot(0.11, 0.8f, ang, detail::GetTrackColorSet(), true, 12); }
                 //actually draw the tracking dot
                 knob.draw_dot(0.1f, 0.8f, knob.angle, detail::GetPrimaryColorSet(), true, 12);
 
@@ -270,8 +260,9 @@ namespace ImGuiKnobs {
             }
             case ImGuiKnobBorderStyle_WiperTick:
             {
-                //custom arc because draw arc has weird alpha overlap issues
-                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.01f) { knob.draw_tick(0.71f, 0.9f, 0.01f, ang, detail::GetTrackColorSet()); }
+                //custom arc because draw arc has weird alpha overlap issues (ang increment is smaller to make color match dots better)
+                for(float ang = knob.angle_min; ang <= knob.angle_max; ang += 0.005f) { knob.draw_tick(0.71f, 0.9f, 0.02f, ang, detail::GetTrackColorSet()); }
+                //draw the tick
                 knob.draw_tick(0.71f, 0.9f, 0.055f, knob.angle, detail::GetPrimaryColorSet());
 
                 //fill
